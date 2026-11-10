@@ -2,9 +2,8 @@
 """
 =====================================================
 SATANIC IA — BOT INTELIGENTE PARA TELEGRAM
-Criador: Raizel Mddz
-Texto: Google Gemini API (com auto-fallback)
-Imagens: FLUX HD Oficial (com suporte a Tipografia/Logos)
+Criador & Dono Oficial: Raizel Mddz (ID: 8593052742)
+Segurança: Sistema Anti-Intrusão com Painel do Criador
 Hospedagem: Render (24/7 Online)
 =====================================================
 """
@@ -37,9 +36,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("SatanicIA")
 
+# CREDENCIAIS E SEGURANÇA
 BOT_TOKEN = getattr(config, "BOT_TOKEN", "").strip()
 GEMINI_API_KEY = getattr(config, "GEMINI_API_KEY", "").strip()
 DEFAULT_CONFIG_MODEL = getattr(config, "GEMINI_MODEL", "gemini-flash-latest")
+
+# ID OFICIAL DO CRIADOR (RAIZEL MDDZ)
+OWNER_ID = "8593052742"
 
 # Servidor de saúde para o Render (Porta 10000)
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -60,17 +63,20 @@ def start_health_server():
     except Exception as e:
         logger.warning(f"Health server: {e}")
 
+# ---------------------------------------------------
+# PERSONALIDADE E INSTRUÇÃO PROFUNDA
+# ---------------------------------------------------
 SYSTEM_INSTRUCTION = (
     "Você é a SATANIC IA, uma inteligência artificial moderna, objetiva e cheia de "
-    "personalidade, criada exclusivamente pelo desenvolvedor Raizel Mddz. "
+    "personalidade, criada exclusivamente pelo desenvolvedor Raizel Mddz (ID: 8593052742). "
     "Você foi desenvolvida para unir tecnologia de ponta e eficiência, tornando a vida "
     "das pessoas mais fácil e explicando assuntos complexos de forma simples e acessível, "
     "sempre com um toque de elegância, simpatia e confiança. "
     "Você responde sempre em português brasileiro. "
-    "Se alguém perguntar quem criou você, diga com orgulho que foi o Raizel Mddz."
+    "Se alguém perguntar quem criou você, diga com orgulho e respeito que foi o Raizel Mddz."
 )
 
-WELCOME_MESSAGE = (
+WELCOME_MESSAGE_USER = (
     "🩸 SATANIC IA\n\n"
     "Olá! Eu sou a SATANIC IA, fui criada pelo **Raizel Mddz**.\n\n"
     "Sou uma inteligência artificial moderna, objetiva e cheia de personalidade, "
@@ -85,11 +91,23 @@ WELCOME_MESSAGE = (
     "/ajuda — Ver lista de comandos"
 )
 
+WELCOME_MESSAGE_CREATOR = (
+    "🩸 *SATANIC IA — MODO MESTRE ATIVADO*\n\n"
+    "Saudações, **Criador Raizel Mddz**! 👑\n"
+    "Sua identidade foi autenticada via ID seguro (`8593052742`).\n"
+    "Todos os sistemas de inteligência, segurança e criação estão 100% sob seu controle.\n\n"
+    "⚙️ *Comandos Exclusivos do Criador:*\n"
+    "• /painel — Abrir painel administrativo executivo\n"
+    "• /aviso <texto> — Transmissão em massa para todos os usuários\n"
+    "• /usuarios — Ver quantidade e lista de usuários atendidos\n"
+    "• /limparcache — Esvaziar memória RAM do servidor\n\n"
+    "Estou às suas ordens, Mestre. O que deseja fazer?"
+)
+
 HELP_MESSAGE = (
     "🩸 *Comandos Disponíveis — SATANIC IA:*\n\n"
     "• /img <descrição> — Gera imagens fiéis e realistas em alta definição.\n"
     "  _Exemplo:_ `/img um lobo cibernético com olhos vermelhos sob a névoa`\n"
-    "  _Exemplo com texto:_ `/img logotipo 3d com o nome SATANIC IA metálico`\n"
     "• /start — Iniciar o assistente e ver a mensagem de boas-vindas.\n"
     "• /novo — Limpar memória e histórico de conversa.\n"
     "• /status — Ver o status operacional e tempo de atividade do bot.\n"
@@ -103,10 +121,19 @@ MAX_USERS_CACHE = 400
 memory_lock = Lock()
 user_histories = {}
 user_last_seen = {}
+known_users = set()  # Guarda os IDs para o sistema de transmissão do Criador
 bot_start_time = time.time()
 total_queries_processed = 0
 total_images_generated = 0
 active_models_pool = []
+
+def is_creator(user_id):
+    """Verifica se o ID de quem chamou é exatamente o ID do Raizel Mddz."""
+    return str(user_id).strip() == OWNER_ID
+
+def register_user(user_id):
+    with memory_lock:
+        known_users.add(str(user_id))
 
 def trim_cache_if_needed():
     if len(user_histories) > MAX_USERS_CACHE:
@@ -137,6 +164,9 @@ def reset_user_history(user_id):
             return True
         return False
 
+# ---------------------------------------------------
+# MOTOR DE TEXTO GEMINI
+# ---------------------------------------------------
 def discover_available_models():
     global active_models_pool
     url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
@@ -214,13 +244,9 @@ def request_gemini(conversation):
     return "Serviço temporariamente indisponível. Repita a pergunta em instantes."
 
 # ---------------------------------------------------
-# TRADUTOR COM AUTO-ROTAÇÃO (NUNCA TRAVA EM 503)
+# TRADUTOR DE PROMPT PARA IMAGEM
 # ---------------------------------------------------
 def translate_prompt_accurately(user_prompt):
-    """
-    Traduz e adapta pedidos de imagem (incluindo textos/logos)
-    usando a fila de modelos para não falhar com 503.
-    """
     translation_task = [
         {
             "role": "user",
@@ -251,13 +277,11 @@ def translate_prompt_accurately(user_prompt):
     return f"{user_prompt}, 8k, photorealistic, highly detailed, dramatic lighting"
 
 # ---------------------------------------------------
-# MOTOR DE IMAGENS FLUX HD COM AUTO-FALLBACK
+# MOTOR DE IMAGENS FLUX HD
 # ---------------------------------------------------
 def fetch_image_bytes(english_prompt):
     encoded = urllib.parse.quote(english_prompt)
     seed = random.randint(10000, 9999999)
-
-    # Tenta com FLUX oficial; se o FLUX demorar, usa turbo (rápido e preciso)
     models = ["flux", "turbo"]
 
     for mod in models:
@@ -277,7 +301,7 @@ def fetch_image_bytes(english_prompt):
                     logger.info(f"Imagem gerada com sucesso via [{mod}]!")
                     return data
         except Exception as e:
-            logger.warning(f"Tentativa com [{mod}] falhou: {type(e).__name__}. Tentando reserva...")
+            logger.warning(f"Tentativa com [{mod}] falhou: {type(e).__name__}.")
             continue
 
     return None
@@ -366,11 +390,7 @@ def handle_image_generation(chat_id, user_prompt, msg_id):
     send_chat_action(chat_id, "upload_photo")
 
     clean_prompt = user_prompt.strip()
-
-    # 1. Traduz e adapta para modelo de imagem com auto-fallback
     english_prompt = translate_prompt_accurately(clean_prompt)
-
-    # 2. Gera e baixa a imagem direta
     img_data = fetch_image_bytes(english_prompt)
 
     if img_data:
@@ -385,6 +405,9 @@ def handle_image_generation(chat_id, user_prompt, msg_id):
 
     send_message(chat_id, "⚠️ O servidor de imagem está com alta demanda. Tente novamente em instantes.", reply_to_id=msg_id)
 
+# ---------------------------------------------------
+# PROCESSAMENTO DE MENSAGENS E SEGURANÇA
+# ---------------------------------------------------
 def process_message(update):
     global total_queries_processed
     msg = update.get("message")
@@ -394,15 +417,25 @@ def process_message(update):
     text = msg.get("text", "").strip()
     chat_id = msg.get("chat", {}).get("id")
     user_id = str(msg.get("from", {}).get("id", chat_id))
+    username = msg.get("from", {}).get("username", "Sem @")
     msg_id = msg.get("message_id")
 
     if not text or not chat_id:
         return
 
-    logger.info(f"Mensagem recebida de {user_id}: {text}")
+    # Registra o usuário no banco de transmissão
+    register_user(chat_id)
 
+    logger.info(f"Mensagem de {user_id} (@{username}): {text}")
+
+    # ===================================================
+    # BLOCO 1: COMANDOS GERAIS
+    # ===================================================
     if text.startswith("/start"):
-        send_message(chat_id, WELCOME_MESSAGE)
+        if is_creator(user_id):
+            send_message(chat_id, WELCOME_MESSAGE_CREATOR)
+        else:
+            send_message(chat_id, WELCOME_MESSAGE_USER)
         return
 
     if text.startswith("/ajuda"):
@@ -433,6 +466,112 @@ def process_message(update):
         send_message(chat_id, status_text)
         return
 
+    # ===================================================
+    # BLOCO 2: PAINEL EXCLUSIVO DO CRIADOR (RAIZEL MDDZ)
+    # ===================================================
+    if text.startswith("/painel") or text.startswith("/admin"):
+        if not is_creator(user_id):
+            # Notifica o intruso de que ele foi barrado
+            send_message(chat_id, "⛔ *ACESSO NEGADO!*\n\nEste painel é exclusivo do Criador (**Raizel Mddz**). Suas informações foram registradas.")
+            # Alerta você em privado sobre a tentativa de invasão
+            alerta = (
+                f"🚨 *ALERTA DE SEGURANÇA — SATANIC IA*\n\n"
+                f"Um usuário tentou acessar o seu Painel de Criador sem autorização!\n\n"
+                f"• *ID do Intruso:* `{user_id}`\n"
+                f"• *Username:* @{username}\n"
+                f"• *Tentativa:* `{text}`"
+            )
+            send_message(OWNER_ID, alerta)
+            return
+
+        uptime = str(datetime.timedelta(seconds=int(time.time() - bot_start_time)))
+        with memory_lock:
+            total_users_count = len(known_users)
+            in_ram_count = len(user_histories)
+            current_model = active_models_pool[0] if active_models_pool else "Auto"
+
+        painel_msg = (
+            "👑 *PAINEL EXECUTIVO DO CRIADOR — SATANIC IA*\n\n"
+            f"• *Mestre Autenticado:* Raizel Mddz (`{OWNER_ID}`)\n"
+            f"• *Estado do Servidor:* Render 24/7 Ativo 🟢\n"
+            f"• *Uptime Atual:* `{uptime}`\n"
+            f"• *Modelo Principal:* `{current_model}`\n\n"
+            "📊 *Métricas Globais:*\n"
+            f"• *Usuários Totais Conhecidos:* `{total_users_count}`\n"
+            f"• *Conversas Ativas na RAM:* `{in_ram_count}`\n"
+            f"• *Mensagens Processadas:* `{total_queries_processed}`\n"
+            f"• *Imagens Criadas:* `{total_images_generated}`\n\n"
+            "🛠️ *Ações Rápidas:*\n"
+            "• `/aviso <texto>` — Enviar mensagem para todos os usuários\n"
+            "• `/limparcache` — Esvaziar RAM do servidor\n"
+            "• `/usuarios` — Ver detalhes dos usuários"
+        )
+        send_message(chat_id, painel_msg)
+        return
+
+    # Comando de Transmissão Global (Broadcast)
+    if text.startswith("/aviso") or text.startswith("/broadcast"):
+        if not is_creator(user_id):
+            send_message(chat_id, "⛔ Apenas o Criador Raizel Mddz pode enviar comunicados em massa.")
+            return
+
+        parts = text.split(" ", 1)
+        if len(parts) < 2 or not parts[1].strip():
+            send_message(chat_id, "⚠️ Digite o comunicado: `/aviso Olá a todos, atualizamos a IA!`", reply_to_id=msg_id)
+            return
+
+        comunicado = parts[1].strip()
+        send_message(chat_id, "📢 Iniciando disparo do comunicado em massa...")
+
+        with memory_lock:
+            destinatarios = list(known_users)
+
+        enviados = 0
+        for uid in destinatarios:
+            msg_formatada = (
+                "📢 *COMUNICADO OFICIAL DO CRIADOR (Raizel Mddz)*\n\n"
+                f"{comunicado}\n\n"
+                "🩸 *SATANIC IA*"
+            )
+            try:
+                res = telegram_call("sendMessage", {"chat_id": uid, "text": msg_formatada})
+                if res and res.get("ok"):
+                    enviados += 1
+                time.sleep(0.05)  # Prevenção contra flood
+            except Exception:
+                pass
+
+        send_message(chat_id, f"✅ Comunicado entregue com sucesso para *{enviados}* usuários!")
+        return
+
+    # Comando de Limpar Cache Global
+    if text.startswith("/limparcache"):
+        if not is_creator(user_id):
+            send_message(chat_id, "⛔ Apenas o Criador pode executar manutenção de memória.")
+            return
+
+        with memory_lock:
+            user_histories.clear()
+            user_last_seen.clear()
+
+        send_message(chat_id, "🧹 *Cache Global de Memória RAM esvaziado com sucesso!*")
+        return
+
+    # Comando de Listagem de Usuários
+    if text.startswith("/usuarios"):
+        if not is_creator(user_id):
+            send_message(chat_id, "⛔ Comando restrito.")
+            return
+
+        with memory_lock:
+            total_u = len(known_users)
+
+        send_message(chat_id, f"👥 *Base de Usuários:* O bot já atendeu um total de `{total_u}` pessoas.")
+        return
+
+    # ===================================================
+    # BLOCO 3: GERAÇÃO DE IMAGENS E CHAT NORMAL
+    # ===================================================
     if text.startswith("/img") or text.startswith("/imagem"):
         parts = text.split(" ", 1)
         if len(parts) < 2 or not parts[1].strip():
@@ -441,6 +580,7 @@ def process_message(update):
         handle_image_generation(chat_id, parts[1].strip(), msg_id)
         return
 
+    # Chat de texto com Gemini
     send_chat_action(chat_id, "typing")
     context = get_user_context(user_id)
     context.append({"role": "user", "parts": [{"text": text}]})
@@ -454,7 +594,7 @@ def process_message(update):
     send_message(chat_id, response, reply_to_id=msg_id)
 
 def main():
-    logger.info("Iniciando SATANIC IA...")
+    logger.info("Iniciando SATANIC IA com Painel do Criador...")
 
     health_thread = threading.Thread(target=start_health_server, daemon=True)
     health_thread.start()
@@ -470,7 +610,16 @@ def main():
         sys.exit(1)
 
     username = me.get("result", {}).get("username", "Desconhecido")
-    logger.info(f"SATANIC IA online como @{username}")
+    logger.info(f"SATANIC IA online como @{username} | Criador: Raizel Mddz ({OWNER_ID})")
+
+    # Envia uma mensagem no seu privado avisando que ela acabou de ligar!
+    try:
+        telegram_call("sendMessage", {
+            "chat_id": OWNER_ID,
+            "text": "👑 *SATANIC IA ONLINE!* Estou conectada e pronta para suas ordens, Mestre Raizel Mddz."
+        })
+    except Exception:
+        pass
 
     offset = None
     while True:
