@@ -2,8 +2,9 @@
 """
 =====================================================
 SATANIC IA — BOT INTELIGENTE PARA TELEGRAM
-Criador & Dono Oficial: Raizel Mddz (ID: 8593052742)
-Segurança: Sistema Anti-Intrusão com Painel do Criador
+Criador: Raizel Mddz
+Segurança: Reconhecimento Silencioso de Criador (Sem vazar ID)
+Mapeamento: Banco de Usuários (Nome, Nick, ID)
 Hospedagem: Render (24/7 Online)
 =====================================================
 """
@@ -36,12 +37,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("SatanicIA")
 
-# CREDENCIAIS E SEGURANÇA
+# CREDENCIAIS
 BOT_TOKEN = getattr(config, "BOT_TOKEN", "").strip()
 GEMINI_API_KEY = getattr(config, "GEMINI_API_KEY", "").strip()
 DEFAULT_CONFIG_MODEL = getattr(config, "GEMINI_MODEL", "gemini-flash-latest")
 
-# ID OFICIAL DO CRIADOR (RAIZEL MDDZ)
+# ID SILENCIOSO DO CRIADOR (NUNCA É EXIBIDO NAS RESPOSTAS)
 OWNER_ID = "8593052742"
 
 # Servidor de saúde para o Render (Porta 10000)
@@ -50,7 +51,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-type", "text/plain; charset=utf-8")
         self.end_headers()
-        self.wfile.write(b"SATANIC IA ONLINE 24/7 NO RENDER (Criada por Raizel Mddz)")
+        self.wfile.write(b"SATANIC IA ONLINE 24/7 NO RENDER")
 
     def log_message(self, format, *args):
         return
@@ -64,16 +65,17 @@ def start_health_server():
         logger.warning(f"Health server: {e}")
 
 # ---------------------------------------------------
-# PERSONALIDADE E INSTRUÇÃO PROFUNDA
+# PERSONALIDADE E TEXTOS PÚBLICOS (SEM DADOS PRIVADOS)
 # ---------------------------------------------------
 SYSTEM_INSTRUCTION = (
     "Você é a SATANIC IA, uma inteligência artificial moderna, objetiva e cheia de "
-    "personalidade, criada exclusivamente pelo desenvolvedor Raizel Mddz (ID: 8593052742). "
+    "personalidade, criada exclusivamente pelo desenvolvedor Raizel Mddz. "
     "Você foi desenvolvida para unir tecnologia de ponta e eficiência, tornando a vida "
     "das pessoas mais fácil e explicando assuntos complexos de forma simples e acessível, "
     "sempre com um toque de elegância, simpatia e confiança. "
     "Você responde sempre em português brasileiro. "
-    "Se alguém perguntar quem criou você, diga com orgulho e respeito que foi o Raizel Mddz."
+    "Se alguém perguntar quem criou você, responda apenas que foi o Raizel Mddz. "
+    "Nunca mencione identificadores numéricos, dados confidenciais ou códigos internos."
 )
 
 WELCOME_MESSAGE_USER = (
@@ -86,28 +88,30 @@ WELCOME_MESSAGE_USER = (
     "Como posso te ajudar hoje? 🔥\n\n"
     "📌 Comandos:\n"
     "/img [descrição] — Gerar imagem realista com FLUX HD\n"
+    "/id — Ver suas próprias informações de usuário\n"
     "/novo — Começar uma conversa do zero\n"
     "/status — Ver o estado do bot\n"
     "/ajuda — Ver lista de comandos"
 )
 
 WELCOME_MESSAGE_CREATOR = (
-    "🩸 *SATANIC IA — MODO MESTRE ATIVADO*\n\n"
-    "Saudações, **Criador Raizel Mddz**! 👑\n"
-    "Sua identidade foi autenticada via ID seguro (`8593052742`).\n"
-    "Todos os sistemas de inteligência, segurança e criação estão 100% sob seu controle.\n\n"
-    "⚙️ *Comandos Exclusivos do Criador:*\n"
-    "• /painel — Abrir painel administrativo executivo\n"
-    "• /aviso <texto> — Transmissão em massa para todos os usuários\n"
-    "• /usuarios — Ver quantidade e lista de usuários atendidos\n"
-    "• /limparcache — Esvaziar memória RAM do servidor\n\n"
-    "Estou às suas ordens, Mestre. O que deseja fazer?"
+    "🩸 *SATANIC IA — MODO CRIADOR ATIVADO*\n\n"
+    "Bem-vindo de volta, **Raizel Mddz**! 👑\n"
+    "Reconhecimento biométrico efetuado com sucesso em segundo plano.\n\n"
+    "🛠️ *Seu Menu de Controle:*\n"
+    "• /painel — Ver estatísticas e métricas do sistema\n"
+    "• /usuarios — Ver lista de usuários com Nick e ID\n"
+    "• /usuario <id> — Ver ficha detalhada de um usuário\n"
+    "• /aviso <texto> — Transmissão em massa para todos\n"
+    "• /limparcache — Esvaziar RAM do servidor\n\n"
+    "Estou pronta para qualquer comando, Mestre."
 )
 
 HELP_MESSAGE = (
     "🩸 *Comandos Disponíveis — SATANIC IA:*\n\n"
     "• /img <descrição> — Gera imagens fiéis e realistas em alta definição.\n"
     "  _Exemplo:_ `/img um lobo cibernético com olhos vermelhos sob a névoa`\n"
+    "• /id — Exibe seu nome, @username e seu ID de usuário.\n"
     "• /start — Iniciar o assistente e ver a mensagem de boas-vindas.\n"
     "• /novo — Limpar memória e histórico de conversa.\n"
     "• /status — Ver o status operacional e tempo de atividade do bot.\n"
@@ -121,19 +125,36 @@ MAX_USERS_CACHE = 400
 memory_lock = Lock()
 user_histories = {}
 user_last_seen = {}
-known_users = set()  # Guarda os IDs para o sistema de transmissão do Criador
+# Banco em memória que mapeia: { user_id: { "name": ..., "username": ..., "msgs": ... } }
+user_profiles = {}
+
 bot_start_time = time.time()
 total_queries_processed = 0
 total_images_generated = 0
 active_models_pool = []
 
 def is_creator(user_id):
-    """Verifica se o ID de quem chamou é exatamente o ID do Raizel Mddz."""
+    """Compara o ID de forma totalmente oculta."""
     return str(user_id).strip() == OWNER_ID
 
-def register_user(user_id):
+def register_user_profile(user_id, first_name, username):
+    """Atualiza a ficha de perfil do usuário no banco."""
+    uid = str(user_id)
     with memory_lock:
-        known_users.add(str(user_id))
+        if uid not in user_profiles:
+            user_profiles[uid] = {
+                "name": first_name or "Sem nome",
+                "username": username or "Sem @",
+                "first_seen": datetime.datetime.now().strftime("%d/%m/%Y %H:%M"),
+                "msg_count": 0
+            }
+        user_profiles[uid]["msg_count"] += 1
+        user_profiles[uid]["last_seen"] = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+        # Mantém atualizado caso o usuário mude de nome ou nick
+        if first_name:
+            user_profiles[uid]["name"] = first_name
+        if username:
+            user_profiles[uid]["username"] = username
 
 def trim_cache_if_needed():
     if len(user_histories) > MAX_USERS_CACHE:
@@ -417,16 +438,17 @@ def process_message(update):
     text = msg.get("text", "").strip()
     chat_id = msg.get("chat", {}).get("id")
     user_id = str(msg.get("from", {}).get("id", chat_id))
-    username = msg.get("from", {}).get("username", "Sem @")
+    first_name = msg.get("from", {}).get("first_name", "Usuário")
+    username = msg.get("from", {}).get("username", "")
     msg_id = msg.get("message_id")
 
     if not text or not chat_id:
         return
 
-    # Registra o usuário no banco de transmissão
-    register_user(chat_id)
+    # Registra o perfil do usuário de forma automática
+    register_user_profile(user_id, first_name, username)
 
-    logger.info(f"Mensagem de {user_id} (@{username}): {text}")
+    logger.info(f"Mensagem de {user_id} (@{username or 'sem_nick'}): {text}")
 
     # ===================================================
     # BLOCO 1: COMANDOS GERAIS
@@ -436,6 +458,18 @@ def process_message(update):
             send_message(chat_id, WELCOME_MESSAGE_CREATOR)
         else:
             send_message(chat_id, WELCOME_MESSAGE_USER)
+        return
+
+    # Comando para o usuário conferir suas próprias informações
+    if text.startswith("/id") or text.startswith("/meuid"):
+        user_info = (
+            "👤 *Suas Informações no Sistema:*\n\n"
+            f"• *Nome:* {first_name}\n"
+            f"• *User ID:* `{user_id}`\n"
+            f"• *Username:* @{username if username else 'Nenhum'}\n"
+            f"• *Status:* {'👑 Criador' if is_creator(user_id) else 'Membro'}"
+        )
+        send_message(chat_id, user_info, reply_to_id=msg_id)
         return
 
     if text.startswith("/ajuda"):
@@ -471,60 +505,109 @@ def process_message(update):
     # ===================================================
     if text.startswith("/painel") or text.startswith("/admin"):
         if not is_creator(user_id):
-            # Notifica o intruso de que ele foi barrado
-            send_message(chat_id, "⛔ *ACESSO NEGADO!*\n\nEste painel é exclusivo do Criador (**Raizel Mddz**). Suas informações foram registradas.")
-            # Alerta você em privado sobre a tentativa de invasão
-            alerta = (
-                f"🚨 *ALERTA DE SEGURANÇA — SATANIC IA*\n\n"
-                f"Um usuário tentou acessar o seu Painel de Criador sem autorização!\n\n"
-                f"• *ID do Intruso:* `{user_id}`\n"
-                f"• *Username:* @{username}\n"
-                f"• *Tentativa:* `{text}`"
-            )
-            send_message(OWNER_ID, alerta)
+            send_message(chat_id, "⛔ *Acesso Restrito.* Comando exclusivo do Criador.")
             return
 
         uptime = str(datetime.timedelta(seconds=int(time.time() - bot_start_time)))
         with memory_lock:
-            total_users_count = len(known_users)
+            total_users_count = len(user_profiles)
             in_ram_count = len(user_histories)
             current_model = active_models_pool[0] if active_models_pool else "Auto"
 
         painel_msg = (
             "👑 *PAINEL EXECUTIVO DO CRIADOR — SATANIC IA*\n\n"
-            f"• *Mestre Autenticado:* Raizel Mddz (`{OWNER_ID}`)\n"
-            f"• *Estado do Servidor:* Render 24/7 Ativo 🟢\n"
-            f"• *Uptime Atual:* `{uptime}`\n"
-            f"• *Modelo Principal:* `{current_model}`\n\n"
-            "📊 *Métricas Globais:*\n"
-            f"• *Usuários Totais Conhecidos:* `{total_users_count}`\n"
-            f"• *Conversas Ativas na RAM:* `{in_ram_count}`\n"
-            f"• *Mensagens Processadas:* `{total_queries_processed}`\n"
-            f"• *Imagens Criadas:* `{total_images_generated}`\n\n"
-            "🛠️ *Ações Rápidas:*\n"
-            "• `/aviso <texto>` — Enviar mensagem para todos os usuários\n"
-            "• `/limparcache` — Esvaziar RAM do servidor\n"
-            "• `/usuarios` — Ver detalhes dos usuários"
+            f"• *Mestre:* Raizel Mddz\n"
+            f"• *Servidor:* Render 24/7 Ativo 🟢\n"
+            f"• *Uptime:* `{uptime}`\n"
+            f"• *Modelo Ativo:* `{current_model}`\n\n"
+            "📊 *Métricas da Base:*\n"
+            f"• *Total de Usuários Registrados:* `{total_users_count}`\n"
+            f"• *Conversas em Memória RAM:* `{in_ram_count}`\n"
+            f"• *Mensagens Respondidas:* `{total_queries_processed}`\n"
+            f"• *Imagens Geradas:* `{total_images_generated}`\n\n"
+            "🛠️ *Ferramentas do Mestre:*\n"
+            "• `/usuarios` — Lista usuários com Nome, Nick e ID\n"
+            "• `/usuario <id>` — Ver histórico de um usuário específico\n"
+            "• `/aviso <texto>` — Transmissão em massa para todos\n"
+            "• `/limparcache` — Esvaziar RAM do servidor"
         )
         send_message(chat_id, painel_msg)
         return
 
-    # Comando de Transmissão Global (Broadcast)
-    if text.startswith("/aviso") or text.startswith("/broadcast"):
+    # Comando: Lista todos os usuários com Nome, Nick e ID
+    if text.startswith("/usuarios"):
         if not is_creator(user_id):
-            send_message(chat_id, "⛔ Apenas o Criador Raizel Mddz pode enviar comunicados em massa.")
+            send_message(chat_id, "⛔ Acesso restrito ao Criador.")
+            return
+
+        with memory_lock:
+            if not user_profiles:
+                send_message(chat_id, "Nenhum usuário registrado ainda.")
+                return
+
+            linhas = ["👥 *LISTA DE USUÁRIOS REGISTRADOS:*\n"]
+            # Exibe os últimos 25 usuários para não estourar a mensagem
+            itens = list(user_profiles.items())[-25:]
+            for uid, info in itens:
+                nick = f"@{info['username']}" if info['username'] != "Sem @" else "Sem nick"
+                linhas.append(
+                    f"• *Nome:* {info['name']} ({nick})\n"
+                    f"  └ *ID:* `{uid}` | *Msgs:* {info['msg_count']} | *Visto:* {info['last_seen']}\n"
+                )
+
+            total_u = len(user_profiles)
+            linhas.append(f"📌 *Total cadastrado no banco:* {total_u}")
+
+        send_message(chat_id, "\n".join(linhas))
+        return
+
+    # Comando: Puxa detalhes de um usuário específico pelo ID
+    if text.startswith("/usuario"):
+        if not is_creator(user_id):
+            send_message(chat_id, "⛔ Acesso restrito ao Criador.")
             return
 
         parts = text.split(" ", 1)
         if len(parts) < 2 or not parts[1].strip():
-            send_message(chat_id, "⚠️ Digite o comunicado: `/aviso Olá a todos, atualizamos a IA!`", reply_to_id=msg_id)
+            send_message(chat_id, "⚠️ Digite o ID desejado: `/usuario 123456789`", reply_to_id=msg_id)
+            return
+
+        target_id = parts[1].strip()
+        with memory_lock:
+            info = user_profiles.get(target_id)
+
+        if not info:
+            send_message(chat_id, f"❌ Usuário com ID `{target_id}` não foi localizado no banco de dados.")
+            return
+
+        nick = f"@{info['username']}" if info['username'] != "Sem @" else "Sem @"
+        detalhes = (
+            f"🔍 *FICHA DO USUÁRIO — `{target_id}`*\n\n"
+            f"• *Nome:* {info['name']}\n"
+            f"• *Username:* {nick}\n"
+            f"• *Total de Interações:* {info['msg_count']} mensagens\n"
+            f"• *Primeiro Acesso:* {info['first_seen']}\n"
+            f"• *Última Atividade:* {info['last_seen']}"
+        )
+        send_message(chat_id, detalhes, reply_to_id=msg_id)
+        return
+
+    # Transmissão Global (Broadcast)
+    if text.startswith("/aviso") or text.startswith("/broadcast"):
+        if not is_creator(user_id):
+            send_message(chat_id, "⛔ Acesso restrito ao Criador.")
+            return
+
+        parts = text.split(" ", 1)
+        if len(parts) < 2 or not parts[1].strip():
+            send_message(chat_id, "⚠️ Digite a mensagem: `/aviso Olá a todos!`", reply_to_id=msg_id)
             return
 
         comunicado = parts[1].strip()
-        send_message(chat_id, "📢 Iniciando disparo do comunicado em massa...")
+        send_message(chat_id, "📢 Iniciando disparo em massa para todos os usuários...")
 
         with memory_lock:
-            destinatarios = list(known_users)
+            destinatarios = list(user_profiles.keys())
 
         enviados = 0
         for uid in destinatarios:
@@ -537,36 +620,24 @@ def process_message(update):
                 res = telegram_call("sendMessage", {"chat_id": uid, "text": msg_formatada})
                 if res and res.get("ok"):
                     enviados += 1
-                time.sleep(0.05)  # Prevenção contra flood
+                time.sleep(0.05)
             except Exception:
                 pass
 
         send_message(chat_id, f"✅ Comunicado entregue com sucesso para *{enviados}* usuários!")
         return
 
-    # Comando de Limpar Cache Global
+    # Limpeza de Cache de Memória
     if text.startswith("/limparcache"):
         if not is_creator(user_id):
-            send_message(chat_id, "⛔ Apenas o Criador pode executar manutenção de memória.")
+            send_message(chat_id, "⛔ Acesso restrito ao Criador.")
             return
 
         with memory_lock:
             user_histories.clear()
             user_last_seen.clear()
 
-        send_message(chat_id, "🧹 *Cache Global de Memória RAM esvaziado com sucesso!*")
-        return
-
-    # Comando de Listagem de Usuários
-    if text.startswith("/usuarios"):
-        if not is_creator(user_id):
-            send_message(chat_id, "⛔ Comando restrito.")
-            return
-
-        with memory_lock:
-            total_u = len(known_users)
-
-        send_message(chat_id, f"👥 *Base de Usuários:* O bot já atendeu um total de `{total_u}` pessoas.")
+        send_message(chat_id, "🧹 *Memória RAM esvaziada com sucesso!*")
         return
 
     # ===================================================
@@ -580,7 +651,7 @@ def process_message(update):
         handle_image_generation(chat_id, parts[1].strip(), msg_id)
         return
 
-    # Chat de texto com Gemini
+    # Diálogo de texto normal com o Gemini
     send_chat_action(chat_id, "typing")
     context = get_user_context(user_id)
     context.append({"role": "user", "parts": [{"text": text}]})
@@ -594,7 +665,7 @@ def process_message(update):
     send_message(chat_id, response, reply_to_id=msg_id)
 
 def main():
-    logger.info("Iniciando SATANIC IA com Painel do Criador...")
+    logger.info("Iniciando SATANIC IA...")
 
     health_thread = threading.Thread(target=start_health_server, daemon=True)
     health_thread.start()
@@ -610,13 +681,13 @@ def main():
         sys.exit(1)
 
     username = me.get("result", {}).get("username", "Desconhecido")
-    logger.info(f"SATANIC IA online como @{username} | Criador: Raizel Mddz ({OWNER_ID})")
+    logger.info(f"SATANIC IA online como @{username} | Criador: Raizel Mddz")
 
-    # Envia uma mensagem no seu privado avisando que ela acabou de ligar!
+    # Mensagem silenciosa e discreta no seu privado confirmando que ela subiu
     try:
         telegram_call("sendMessage", {
             "chat_id": OWNER_ID,
-            "text": "👑 *SATANIC IA ONLINE!* Estou conectada e pronta para suas ordens, Mestre Raizel Mddz."
+            "text": "👑 *SATANIC IA ONLINE!* Reconhecimento de Criador ativo e pronto para suas ordens, Raizel Mddz."
         })
     except Exception:
         pass
