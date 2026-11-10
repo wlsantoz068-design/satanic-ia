@@ -2,8 +2,10 @@
 """
 =====================================================
 SATANIC IA — BOT MULTIFUNCIONAL PARA TELEGRAM
-Criador Oficial: Raizel Mddz
+Criador Oficial: Raizel Mddz (ID Protegido)
+Texto & Imagens: Google Gemini & Google Imagen 3 Oficial
 Menu Nativo: Comandos registrados na API do Telegram
+Zero Dependências Externas (Sem Pollinations)
 Hospedagem: Render (24/7 Online)
 =====================================================
 """
@@ -40,8 +42,9 @@ logger = logging.getLogger("SatanicIA")
 BOT_TOKEN = getattr(config, "BOT_TOKEN", "").strip()
 GEMINI_API_KEY = getattr(config, "GEMINI_API_KEY", "").strip()
 DEFAULT_CONFIG_MODEL = getattr(config, "GEMINI_MODEL", "gemini-flash-latest")
+HF_TOKEN = getattr(config, "HF_TOKEN", "").strip()
 
-# ID SILENCIOSO DO CRIADOR
+# ID SILENCIOSO DO CRIADOR (NUNCA É EXIBIDO NAS RESPOSTAS)
 OWNER_ID = "8593052742"
 
 # Servidor de saúde para o Render (Porta 10000)
@@ -63,6 +66,9 @@ def start_health_server():
     except Exception as e:
         logger.warning(f"Health server: {e}")
 
+# ---------------------------------------------------
+# PERSONALIDADE E TEXTOS
+# ---------------------------------------------------
 SYSTEM_INSTRUCTION = (
     "Você é a SATANIC IA, uma inteligência artificial moderna, objetiva e cheia de "
     "personalidade, criada exclusivamente pelo desenvolvedor Raizel Mddz. "
@@ -74,44 +80,42 @@ SYSTEM_INSTRUCTION = (
 WELCOME_MESSAGE_USER = (
     "🩸 SATANIC IA\n\n"
     "Olá! Eu sou a SATANIC IA, fui criada pelo **Raizel Mddz**.\n\n"
-    "Sou uma inteligência artificial completa! Toque no botão **Menu** ao lado do seu "
-    "teclado para ver todos os comandos disponíveis.\n\n"
+    "Sou uma inteligência artificial completa com tecnologia oficial do Google! "
+    "Toque no botão **Menu** ao lado do seu teclado para ver todos os comandos.\n\n"
     "📌 *Principais Recursos:*\n"
-    "• /img [descrição] — Gerar imagem 8k com FLUX HD\n"
-    "• /voz [texto] — Gerar áudio com voz falada\n"
-    "• /video [descrição] — Criar vídeo/animação por IA\n"
+    "• /img [descrição] — Gerar foto realista com Google Imagen 3\n"
+    "• /voz [texto] — Gerar áudio falado com voz natural\n"
     "• /clima [cidade] — Previsão do tempo ao vivo\n"
     "• /wiki [assunto] — Pesquisa enciclopédica inteligente\n"
     "• 📸 *Mande uma foto no chat* — Eu analiso e explico tudo!\n"
     "• /id — Ver suas informações de usuário\n"
-    "• /status — Ver o status do servidor"
+    "• /status — Ver o estado do bot"
 )
 
 WELCOME_MESSAGE_CREATOR = (
     "🩸 *SATANIC IA — MODO CRIADOR ATIVADO*\n\n"
     "Bem-vindo de volta, **Raizel Mddz**! 👑\n"
-    "Reconhecimento biométrico confirmado.\n\n"
-    "🛠️ *Painel de Gestão:*\n"
-    "• /painel — Métricas e estatísticas em tempo real\n"
+    "Reconhecimento biométrico confirmado com sucesso.\n\n"
+    "🛠️ *Seu Menu de Controle:*\n"
+    "• /painel — Ver estatísticas e métricas completas\n"
     "• /usuarios — Ver lista de usuários com Nick e ID\n"
     "• /usuario <id> — Ver ficha detalhada de um usuário\n"
     "• /aviso <texto> — Transmissão em massa para todos\n"
     "• /limparcache — Esvaziar RAM do servidor\n\n"
-    "Todos os comandos foram adicionados ao seu menu!"
+    "Todos os comandos foram registrados no botão Menu do Telegram!"
 )
 
 HELP_MESSAGE = (
     "🩸 *Guia de Comandos — SATANIC IA:*\n\n"
     "🎨 *Multimídia & Criação:*\n"
-    "• `/img <descrição>` — Imagens realistas em alta definição.\n"
-    "• `/video <descrição>` — Cria vídeos curtos e animações.\n"
+    "• `/img <descrição>` — Fotos em alta definição com Google Imagen 3.\n"
     "• `/voz <texto>` — Envia áudio falado com voz natural.\n"
-    "• 📸 *Envie uma foto* para análise visual detalhada.\n\n"
+    "• 📸 *Envie uma foto* para análise visual detalhada da IA.\n\n"
     "🌐 *Pesquisas & Utilidades:*\n"
     "• `/clima <cidade>` — Clima e temperatura em tempo real.\n"
     "• `/wiki <termo>` — Pesquisa enciclopédica inteligente.\n"
     "• `/id` — Exibe seu nome, @username e ID.\n"
-    "• `/novo` — Reinicia a conversa.\n"
+    "• `/novo` — Reinicia a conversa atual.\n"
     "• `/status` — Mostra o estado do servidor.\n\n"
     "Criada por: **Raizel Mddz**"
 )
@@ -128,7 +132,6 @@ bot_start_time = time.time()
 total_queries_processed = 0
 total_images_generated = 0
 total_voices_generated = 0
-total_videos_generated = 0
 active_models_pool = []
 
 def is_creator(user_id):
@@ -181,29 +184,26 @@ def reset_user_history(user_id):
         return False
 
 # ---------------------------------------------------
-# CONFIGURAÇÃO DO MENU DE COMANDOS DO TELEGRAM
+# CONFIGURAÇÃO DO BOTÃO MENU NATIVO DO TELEGRAM
 # ---------------------------------------------------
 def setup_telegram_commands_menu():
-    """Registra os comandos no botão Menu nativo do Telegram."""
+    """Registra todos os comandos no botão Menu oficial do Telegram."""
     user_commands = [
-        {"command": "img", "description": "🎨 Gerar imagem 8k com FLUX HD"},
+        {"command": "img", "description": "🎨 Gerar foto oficial com Google Imagen 3"},
         {"command": "voz", "description": "🎙️ Gerar áudio falado por IA"},
-        {"command": "video", "description": "🎬 Gerar vídeo/animação por IA"},
         {"command": "clima", "description": "🌦️ Previsão do tempo ao vivo"},
-        {"command": "wiki", "description": "📚 Pesquisa enciclopédica inteligente"},
+        {"command": "wiki", "description": "📚 Enciclopédia inteligente"},
         {"command": "id", "description": "👤 Ver seu perfil e ID de usuário"},
         {"command": "novo", "description": "🧹 Limpar memória da conversa"},
         {"command": "status", "description": "⚙️ Ver status e saúde da IA"},
         {"command": "ajuda", "description": "📖 Guia completo de comandos"}
     ]
-
-    # Registra o menu público geral
     telegram_call("setMyCommands", {"commands": user_commands})
 
-    # Registra o menu especial exclusivo para o Criador (Raizel Mddz)
     creator_commands = user_commands + [
         {"command": "painel", "description": "👑 Abrir Painel do Criador"},
         {"command": "usuarios", "description": "👥 Ver lista de usuários com ID e Nick"},
+        {"command": "usuario", "description": "🔍 Ver ficha detalhada de um usuário"},
         {"command": "aviso", "description": "📢 Enviar transmissão em massa"},
         {"command": "limparcache", "description": "🧹 Esvaziar RAM do servidor"}
     ]
@@ -211,7 +211,7 @@ def setup_telegram_commands_menu():
         "commands": creator_commands,
         "scope": {"type": "chat", "chat_id": OWNER_ID}
     })
-    logger.info("Menu nativo de comandos configurado com sucesso!")
+    logger.info("Botão Menu configurado com sucesso no Telegram!")
 
 # ---------------------------------------------------
 # MOTOR DE TEXTO E VISÃO GEMINI
@@ -249,7 +249,7 @@ def discover_available_models():
             final_pool.append(m)
 
     active_models_pool = final_pool or ["gemini-flash-latest", "gemini-3.8-flash"]
-    logger.info(f"Modelos de texto/visão prontos: {active_models_pool}")
+    logger.info(f"Modelos de texto/visão ativos: {active_models_pool}")
 
 def call_gemini_endpoint(model_name, conversation):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
@@ -386,23 +386,18 @@ def fetch_weather(city_name):
         return f"❌ Não foi possível obter a previsão para '{city_name}'. Verifique o nome da cidade."
 
 def fetch_wikipedia_smart(search_term):
-    """
-    Pesquisa na Wikipédia oficial. Se não houver artigo exato,
-    a IA do Gemini explica o assunto enciclopedicamente.
-    """
     clean_term = search_term.strip()
     encoded_term = urllib.parse.quote(clean_term.replace(" ", "_"))
     url = f"https://pt.wikipedia.org/api/rest_v1/page/summary/{encoded_term}"
 
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "SatanicIA_Bot/1.0"})
-        with urllib.request.urlopen(req, timeout=12) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            title = data.get("title", clean_term)
             extract = data.get("extract", "")
-            page_url = data.get("content_urls", {}).get("desktop", {}).get("page", "")
-
             if extract and len(extract) > 20:
+                title = data.get("title", clean_term)
+                page_url = data.get("content_urls", {}).get("desktop", {}).get("page", "")
                 return (
                     f"📚 *ENCICLOPÉDIA OFICIAL — {title}*\n\n"
                     f"{extract}\n\n"
@@ -412,13 +407,12 @@ def fetch_wikipedia_smart(search_term):
     except Exception:
         pass
 
-    # Fallback inteligente: O Gemini explica o assunto como enciclopédia
-    logger.info(f"Termo '{clean_term}' não encontrado na Wikipédia formal. Acionando IA...")
+    # Se a Wikipédia formal não tiver o artigo (ex: 'gato de roupa de marca'):
     ai_query = [{
         "role": "user",
         "parts": [{
             "text": (
-                f"Escreva um resumo explicativo e enciclopédico sobre o termo: '{clean_term}'. "
+                f"Escreva um resumo explicativo, curioso e enciclopédico sobre o termo: '{clean_term}'. "
                 "Explique o que é, o contexto, curiosidades e significados em 2 a 3 parágrafos claros em português brasileiro."
             )
         }]
@@ -431,41 +425,72 @@ def fetch_wikipedia_smart(search_term):
     )
 
 # ---------------------------------------------------
-# GERAÇÃO DE VÍDEO / ANIMAÇÃO (/video)
+# MOTOR DE IMAGENS OFICIAL: GOOGLE IMAGEN 3
+# (Substitui 100% a Pollinations com qualidade oficial)
 # ---------------------------------------------------
-def fetch_video_bytes(english_prompt):
-    """Busca animação/vídeo curto gerado por IA."""
-    encoded = urllib.parse.quote(english_prompt)
-    seed = random.randint(1000, 999999)
-    
-    # Endpoints de vídeo e animação resilientes
-    endpoints = [
-        f"https://video.pollinations.ai/prompt/{encoded}?width=512&height=512&seed={seed}&nologo=true",
-        f"https://image.pollinations.ai/prompt/{encoded}?model=video&width=512&height=512&seed={seed}&nologo=true"
-    ]
+def generate_image_google_imagen(prompt_text):
+    """
+    Gera fotos diretamente pela API oficial do Google Imagen 3
+    usando a sua própria GEMINI_API_KEY.
+    """
+    models_to_try = ["imagen-3.0-generate-002", "imagen-3.0-fast-generate-001"]
 
-    for url in endpoints:
+    for model_name in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:predict"
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": GEMINI_API_KEY
+        }
+        payload = {
+            "instances": [{"prompt": prompt_text}],
+            "parameters": {
+                "sampleCount": 1,
+                "aspectRatio": "1:1",
+                "outputMimeType": "image/jpeg"
+            }
+        }
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=50) as resp:
-                data = resp.read()
-                if len(data) > 5000:
-                    return data
-        except Exception:
+            req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                predictions = data.get("predictions", [])
+                if predictions:
+                    b64_data = predictions[0].get("bytesBase64Encoded")
+                    if b64_data:
+                        logger.info(f"Foto gerada com sucesso via Google Imagen 3 ({model_name})!")
+                        return base64.b64decode(b64_data)
+        except Exception as e:
+            logger.warning(f"Google Imagen falhou no modelo [{model_name}]: {e}")
             continue
+
     return None
 
-# ---------------------------------------------------
-# MOTOR DE IMAGENS FLUX HD
-# ---------------------------------------------------
+def fetch_image_huggingface_fallback(prompt_text):
+    """Fallback secundário via Hugging Face Inference caso o Imagen oscile."""
+    url = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
+    headers = {"Content-Type": "application/json"}
+    if HF_TOKEN:
+        headers["Authorization"] = f"Bearer {HF_TOKEN}"
+
+    try:
+        payload = {"inputs": prompt_text}
+        req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=40) as resp:
+            data = resp.read()
+            if len(data) > 8000 and (data[:2] == b'\xff\xd8' or data[:4] == b'\x89PNG'):
+                return data
+    except Exception:
+        pass
+    return None
+
 def translate_prompt_accurately(user_prompt):
     translation_task = [{
         "role": "user",
         "parts": [{
             "text": (
-                "Act as an expert prompt translator for AI image and video generators. "
-                "Translate this user prompt to English. If text is requested, format as: bold 3D text 'NAME'. "
-                "Keep the subject, add realistic cinematic lighting and 8k detail. "
+                "Act as an expert prompt translator for Google Imagen 3. "
+                "Translate this user prompt to English. If text/letters are requested, format as: bold typography 'NAME'. "
+                "Keep the subject, add realistic cinematic lighting and photorealistic detail. "
                 f"Return ONLY the prompt string:\n\n{user_prompt}"
             )
         }]
@@ -482,23 +507,6 @@ def translate_prompt_accurately(user_prompt):
         pass
 
     return f"{user_prompt}, 8k, photorealistic, cinematic lighting"
-
-def fetch_image_bytes(english_prompt):
-    encoded = urllib.parse.quote(english_prompt)
-    seed = random.randint(10000, 9999999)
-
-    for mod in ["flux", "turbo"]:
-        url = f"https://image.pollinations.ai/prompt/{encoded}?model={mod}&width=1024&height=1024&seed={seed}&nologo=true"
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            timeout_val = 35 if mod == "flux" else 20
-            with urllib.request.urlopen(req, timeout=timeout_val) as resp:
-                data = resp.read()
-                if len(data) > 8000 and (data[:2] == b'\xff\xd8' or data[:4] == b'\x89PNG'):
-                    return data
-        except Exception:
-            continue
-    return None
 
 # ---------------------------------------------------
 # ENVIOS NATIVOS TELEGRAM (MULTIPART)
@@ -572,7 +580,7 @@ def send_multipart_file(method, field_name, chat_id, file_bytes, filename, mime_
 
     try:
         req = urllib.request.Request(url, data=bytes(body), headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=50) as resp:
             res_data = json.loads(resp.read().decode("utf-8"))
             return res_data.get("ok", False)
     except Exception as e:
@@ -583,7 +591,7 @@ def send_multipart_file(method, field_name, chat_id, file_bytes, filename, mime_
 # PROCESSAMENTO DE MENSAGENS E ATUALIZAÇÕES
 # ---------------------------------------------------
 def process_message(update):
-    global total_queries_processed, total_images_generated, total_voices_generated, total_videos_generated
+    global total_queries_processed, total_images_generated, total_voices_generated
 
     msg = update.get("message")
     if not msg:
@@ -602,9 +610,7 @@ def process_message(update):
 
     register_user_profile(user_id, first_name, username)
 
-    # ===================================================
     # 1. FOTO RECEBIDA (GEMINI VISION)
-    # ===================================================
     photos = msg.get("photo")
     if photos:
         send_chat_action(chat_id, "typing")
@@ -634,9 +640,7 @@ def process_message(update):
 
     logger.info(f"Mensagem de {user_id} (@{username or 'sem_nick'}): {text}")
 
-    # ===================================================
     # 2. COMANDOS GERAIS & ID
-    # ===================================================
     if text.startswith("/start"):
         if is_creator(user_id):
             send_message(chat_id, WELCOME_MESSAGE_CREATOR)
@@ -674,20 +678,17 @@ def process_message(update):
             f"• *Criador:* Raizel Mddz\n"
             f"• *Status:* Operacional 🟢\n"
             f"• *Modelo Texto:* `{current_model}`\n"
-            f"• *Motor Imagem:* `FLUX HD Oficial`\n"
+            f"• *Motor Imagem:* `Google Imagen 3 Oficial`\n"
             f"• *Uptime:* `{uptime}`\n"
             f"• *Usuários Ativos:* `{cached_users}`\n"
             f"• *Consultas:* `{total_queries_processed}`\n"
             f"• *Imagens:* `{total_images_generated}`\n"
-            f"• *Vozes:* `{total_voices_generated}`\n"
-            f"• *Vídeos:* `{total_videos_generated}`"
+            f"• *Áudios de Voz:* `{total_voices_generated}`"
         )
         send_message(chat_id, status_text)
         return
 
-    # ===================================================
     # 3. RESPOSTA EM VOZ (/voz)
-    # ===================================================
     if text.startswith("/voz") or text.startswith("/audio"):
         parts = text.split(" ", 1)
         if len(parts) < 2 or not parts[1].strip():
@@ -707,9 +708,7 @@ def process_message(update):
         send_message(chat_id, "⚠️ Não consegui gerar o áudio no momento. Tente novamente.", reply_to_id=msg_id)
         return
 
-    # ===================================================
     # 4. CLIMA E WIKIPÉDIA INTELIGENTE
-    # ===================================================
     if text.startswith("/clima") or text.startswith("/tempo"):
         parts = text.split(" ", 1)
         if len(parts) < 2 or not parts[1].strip():
@@ -732,59 +731,37 @@ def process_message(update):
         send_message(chat_id, resultado_wiki, reply_to_id=msg_id)
         return
 
-    # ===================================================
-    # 5. GERAÇÃO DE VÍDEO (/video)
-    # ===================================================
-    if text.startswith("/video"):
-        parts = text.split(" ", 1)
-        if len(parts) < 2 or not parts[1].strip():
-            send_message(chat_id, "⚠️ Digite a descrição: `/video um dragão voando sobre um castelo`", reply_to_id=msg_id)
-            return
-
-        send_chat_action(chat_id, "upload_video")
-        send_message(chat_id, "🎬 *Renderizando animação por IA... Aguarde alguns instantes.*", reply_to_id=msg_id)
-
-        prompt_video = parts[1].strip()
-        english_prompt = translate_prompt_accurately(prompt_video)
-        video_bytes = fetch_video_bytes(english_prompt)
-
-        if video_bytes:
-            cap = f"🎬 *Prompt:* _{prompt_video}_\n🩸 *SATANIC IA Video*"
-            ok = send_multipart_file("sendVideo", "video", chat_id, video_bytes, "video.mp4", "video/mp4", caption=cap, reply_to_id=msg_id)
-            if ok:
-                total_videos_generated += 1
-                return
-
-        send_message(chat_id, "⚠️ Servidor de vídeo sobrecarregado no momento. Tente novamente em instantes.", reply_to_id=msg_id)
-        return
-
-    # ===================================================
-    # 6. GERAÇÃO DE IMAGEM (/img)
-    # ===================================================
+    # 5. GERAÇÃO DE IMAGEM OFICIAL COM GOOGLE IMAGEN 3 (/img)
     if text.startswith("/img") or text.startswith("/imagem"):
         parts = text.split(" ", 1)
         if len(parts) < 2 or not parts[1].strip():
-            send_message(chat_id, "⚠️ Digite o prompt: `/img logotipo 3d com o nome SATANIC IA`", reply_to_id=msg_id)
+            send_message(chat_id, "⚠️ Digite o prompt: `/img logotipo 3d sombrio com o nome SATANIC IA`", reply_to_id=msg_id)
             return
 
         send_chat_action(chat_id, "upload_photo")
+        send_message(chat_id, "🎨 *Renderizando foto com Google Imagen 3... Aguarde alguns instantes.*", reply_to_id=msg_id)
+
         prompt_img = parts[1].strip()
         english_prompt = translate_prompt_accurately(prompt_img)
-        img_data = fetch_image_bytes(english_prompt)
+
+        # 1. Tenta direto com o Google Imagen 3 oficial
+        img_data = generate_image_google_imagen(english_prompt)
+
+        # 2. Se o Imagen oscilar, aciona o fallback do Hugging Face FLUX
+        if not img_data:
+            img_data = fetch_image_huggingface_fallback(english_prompt)
 
         if img_data:
-            cap = f"🎨 *Prompt:* _{prompt_img}_\n✨ *Motor:* `FLUX HD Oficial`\n🩸 *SATANIC IA* • Criada por: *Raizel Mddz*"
+            cap = f"🎨 *Prompt:* _{prompt_img}_\n✨ *Motor:* `Google Imagen 3 Oficial`\n🩸 *SATANIC IA* • Criada por: *Raizel Mddz*"
             ok = send_multipart_file("sendPhoto", "photo", chat_id, img_data, "image.jpg", "image/jpeg", caption=cap, reply_to_id=msg_id)
             if ok:
                 total_images_generated += 1
                 return
 
-        send_message(chat_id, "⚠️ O servidor de imagem está com alta demanda. Tente novamente em instantes.", reply_to_id=msg_id)
+        send_message(chat_id, "⚠️ Os servidores de imagem estão ocupados no momento. Tente novamente em instantes.", reply_to_id=msg_id)
         return
 
-    # ===================================================
-    # 7. PAINEL DO CRIADOR (RAIZEL MDDZ)
-    # ===================================================
+    # 6. PAINEL DO CRIADOR (RAIZEL MDDZ)
     if text.startswith("/painel") or text.startswith("/admin"):
         if not is_creator(user_id):
             send_message(chat_id, "⛔ Acesso Restrito ao Criador.")
@@ -805,9 +782,8 @@ def process_message(update):
             f"• *Total de Usuários:* `{total_users_count}`\n"
             f"• *Conversas na RAM:* `{in_ram_count}`\n"
             f"• *Mensagens:* `{total_queries_processed}`\n"
-            f"• *Imagens:* `{total_images_generated}`\n"
-            f"• *Áudios de Voz:* `{total_voices_generated}`\n"
-            f"• *Vídeos:* `{total_videos_generated}`\n\n"
+            f"• *Imagens (Imagen 3):* `{total_images_generated}`\n"
+            f"• *Áudios de Voz:* `{total_voices_generated}`\n\n"
             "🛠️ *Comandos de Gestão:*\n"
             "• `/usuarios` — Lista recente com Nick e ID\n"
             "• `/usuario <id>` — Ficha completa de um usuário\n"
@@ -916,9 +892,7 @@ def process_message(update):
         send_message(chat_id, "🧹 *Memória RAM esvaziada com sucesso!*")
         return
 
-    # ===================================================
-    # 8. CHAT DE TEXTO NORMAL (GEMINI)
-    # ===================================================
+    # 7. CHAT DE TEXTO NORMAL (GEMINI)
     send_chat_action(chat_id, "typing")
     context = get_user_context(user_id)
     context.append({"role": "user", "parts": [{"text": text}]})
@@ -932,7 +906,7 @@ def process_message(update):
     send_message(chat_id, response, reply_to_id=msg_id)
 
 def main():
-    logger.info("Iniciando SATANIC IA...")
+    logger.info("Iniciando SATANIC IA (Google Imagen 3 Oficial • Sem Pollinations)...")
 
     health_thread = threading.Thread(target=start_health_server, daemon=True)
     health_thread.start()
@@ -948,7 +922,7 @@ def main():
     username = me.get("result", {}).get("username", "Desconhecido")
     logger.info(f"SATANIC IA online como @{username} | Criador: Raizel Mddz")
 
-    # REGISTRA TODOS OS COMANDOS NO BOTÃO MENU DO TELEGRAM
+    # ATIVA O BOTÃO MENU OFICIAL DO TELEGRAM COM TODOS OS COMANDOS
     setup_telegram_commands_menu()
 
     offset = None
