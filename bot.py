@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 """
-=====================================================
 SATANIC IA — BOT INTELIGENTE PARA TELEGRAM
-Texto: Google Gemini API
-Imagens: FLUX Realism HD + Gemini Prompt Enhancer
-Hospedagem: Render (24/7 Online)
-=====================================================
+Render 24/7 • Gemini Texto • FLUX Realism HD
 """
 
 import os
@@ -203,23 +199,18 @@ def request_gemini(conversation):
     return "Serviço temporariamente indisponível. Repita a pergunta em instantes."
 
 # ---------------------------------------------------
-# OTIMIZADOR DE PROMPT COM GEMINI (TURBO PROMPT)
+# OTIMIZADOR DE PROMPT COM GEMINI
 # ---------------------------------------------------
 def enhance_prompt_with_gemini(user_prompt):
-    """
-    Usa o Gemini para converter o prompt do usuário em uma descrição
-    cinematográfica rica em detalhes em inglês, elevando a imagem para o nível Midjourney.
-    """
     prompt_engineer_task = [
         {
             "role": "user",
             "parts": [{
                 "text": (
-                    "Act as an elite AI image prompt engineer (Midjourney and FLUX style). "
-                    "Convert the following user idea into a single, highly detailed, photorealistic prompt in English. "
-                    "Add dramatic cinematic lighting, camera perspective, realistic textures, atmosphere, and 8k detail. "
-                    "Return ONLY the prompt string. Do not use quotes, explanations, or introductory text.\n\n"
-                    f"User idea: {user_prompt}"
+                    "Act as an expert AI prompt engineer. "
+                    "Convert this idea into a detailed, photorealistic prompt in English. "
+                    "Include lighting and 8k detail. Return ONLY the prompt text:\n\n"
+                    f"{user_prompt}"
                 )
             }]
         }
@@ -228,12 +219,211 @@ def enhance_prompt_with_gemini(user_prompt):
     try:
         model_to_use = active_models_pool[0] if active_models_pool else "gemini-flash-latest"
         success, enhanced = call_gemini_endpoint(model_to_use, prompt_engineer_task)
-        if success and enhanced and len(enhanced) > 10:
+        if success and enhanced and len(enhanced) > 5:
             cleaned = enhanced.replace('"', '').replace('\n', ' ').strip()
-            logger.info(f"Prompt turbinado pelo Gemini: {cleaned[:80]}...")
             return cleaned
     except Exception as e:
-        logger.warning(f"Falha ao otimizar prompt com Gemini: {e}")
+        logger.warning(f"Falha ao otimizar prompt: {e}")
 
-    # Fallback caso falhe
-    return f"masterpiece, highly detailed, photorealisti
+    # Fallback seguro com linha fechada corretamente
+    return f"masterpiece, 8k, photorealistic, {user_prompt}"
+
+# ---------------------------------------------------
+# MOTOR DE IMAGENS FLUX REALISM HD
+# ---------------------------------------------------
+def telegram_call(method, payload=None, timeout=30):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/{method}"
+    headers = {"Content-Type": "application/json"}
+    try:
+        data_bytes = json.dumps(payload).encode("utf-8") if payload else None
+        req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as err:
+        logger.warning(f"HTTP {err.code} no Telegram ({method}).")
+        return None
+    except Exception as err:
+        logger.warning(f"Erro Telegram ({method}): {type(err).__name__}")
+        return None
+
+def send_chat_action(chat_id, action="typing"):
+    telegram_call("sendChatAction", {"chat_id": chat_id, "action": action}, timeout=8)
+
+def send_message(chat_id, text, reply_to_id=None):
+    max_len = 4000
+    if len(text) <= max_len:
+        p = {"chat_id": chat_id, "text": text}
+        if reply_to_id:
+            p["reply_to_message_id"] = reply_to_id
+        telegram_call("sendMessage", p)
+        return
+
+    parts = []
+    rem = text
+    while len(rem) > max_len:
+        split_at = rem.rfind("\n", 0, max_len)
+        if split_at == -1:
+            split_at = max_len
+        parts.append(rem[:split_at])
+        rem = rem[split_at:].lstrip()
+    if rem:
+        parts.append(rem)
+
+    for p in parts:
+        telegram_call("sendMessage", {"chat_id": chat_id, "text": p})
+        time.sleep(0.3)
+
+def send_photo_url(chat_id, photo_url, caption=None, reply_to_id=None):
+    payload = {"chat_id": chat_id, "photo": photo_url}
+    if caption:
+        payload["caption"] = caption
+    if reply_to_id:
+        payload["reply_to_message_id"] = reply_to_id
+    res = telegram_call("sendPhoto", payload, timeout=50)
+    return res is not None and res.get("ok", False)
+
+def handle_image_generation(chat_id, user_prompt, msg_id):
+    global total_images_generated
+    send_chat_action(chat_id, "upload_photo")
+
+    clean_prompt = user_prompt.strip()
+
+    # O Gemini melhora o prompt
+    enhanced_prompt = enhance_prompt_with_gemini(clean_prompt)
+
+    # Gera no motor FLUX Realism
+    encoded = urllib.parse.quote(enhanced_prompt)
+    seed = random.randint(100000, 9999999)
+
+    image_url = (
+        f"https://image.pollinations.ai/prompt/{encoded}"
+        f"?model=flux-realism&width=1024&height=1024&seed={seed}&nologo=true"
+    )
+
+    caption = (
+        f"🎨 *Prompt:* _{clean_prompt}_\n"
+        f"✨ *Motor:* `FLUX Realism HD`\n"
+        f"🩸 *SATANIC IA*"
+    )
+
+    ok = send_photo_url(chat_id, image_url, caption=caption, reply_to_id=msg_id)
+    if ok:
+        total_images_generated += 1
+    else:
+        fallback_url = (
+            f"https://image.pollinations.ai/prompt/{urllib.parse.quote(clean_prompt)}"
+            f"?model=flux&width=1024&height=1024&seed={seed}&nologo=true"
+        )
+        send_photo_url(chat_id, fallback_url, caption=f"🎨 _{clean_prompt}_\n🩸 *SATANIC IA*", reply_to_id=msg_id)
+
+def process_message(update):
+    global total_queries_processed
+    msg = update.get("message")
+    if not msg:
+        return
+
+    text = msg.get("text", "").strip()
+    chat_id = msg.get("chat", {}).get("id")
+    user_id = str(msg.get("from", {}).get("id", chat_id))
+    msg_id = msg.get("message_id")
+
+    if not text or not chat_id:
+        return
+
+    logger.info(f"Mensagem recebida de {user_id}: {text}")
+
+    if text.startswith("/start"):
+        send_message(chat_id, WELCOME_MESSAGE)
+        return
+
+    if text.startswith("/ajuda"):
+        send_message(chat_id, HELP_MESSAGE)
+        return
+
+    if text.startswith("/novo"):
+        reset_user_history(user_id)
+        send_message(chat_id, "🧹 Histórico de conversa limpo! Começamos do zero.", reply_to_id=msg_id)
+        return
+
+    if text.startswith("/status"):
+        uptime = str(datetime.timedelta(seconds=int(time.time() - bot_start_time)))
+        with memory_lock:
+            cached_users = len(user_histories)
+            current_model = active_models_pool[0] if active_models_pool else "Auto"
+        status_text = (
+            "⚙️ *STATUS DO SISTEMA — SATANIC IA (24/7)*\n\n"
+            f"• *Status:* Operacional 🟢\n"
+            f"• *Modelo Texto:* `{current_model}`\n"
+            f"• *Motor Imagem:* `FLUX Realism HD`\n"
+            f"• *Uptime:* `{uptime}`\n"
+            f"• *Usuários Ativos:* `{cached_users}`\n"
+            f"• *Consultas:* `{total_queries_processed}`\n"
+            f"• *Imagens:* `{total_images_generated}`"
+        )
+        send_message(chat_id, status_text)
+        return
+
+    if text.startswith("/img") or text.startswith("/imagem"):
+        parts = text.split(" ", 1)
+        if len(parts) < 2 or not parts[1].strip():
+            send_message(chat_id, "⚠️ Digite o prompt: `/img castelo medieval sombrio`", reply_to_id=msg_id)
+            return
+        handle_image_generation(chat_id, parts[1].strip(), msg_id)
+        return
+
+    send_chat_action(chat_id, "typing")
+    context = get_user_context(user_id)
+    context.append({"role": "user", "parts": [{"text": text}]})
+
+    response = request_gemini(context)
+
+    total_queries_processed += 1
+    append_user_message(user_id, "user", text)
+    append_user_message(user_id, "model", response)
+
+    send_message(chat_id, response, reply_to_id=msg_id)
+
+def main():
+    logger.info("Iniciando SATANIC IA...")
+
+    health_thread = threading.Thread(target=start_health_server, daemon=True)
+    health_thread.start()
+
+    logger.info("Limpando possíveis travas de webhook...")
+    telegram_call("deleteWebhook", {"drop_pending_updates": True})
+
+    discover_available_models()
+
+    me = telegram_call("getMe")
+    if not me or not me.get("ok"):
+        logger.error("Falha ao autenticar com Telegram. Verifique seu BOT_TOKEN.")
+        sys.exit(1)
+
+    username = me.get("result", {}).get("username", "Desconhecido")
+    logger.info(f"SATANIC IA online como @{username}")
+
+    offset = None
+    while True:
+        try:
+            params = {"timeout": 20}
+            if offset is not None:
+                params["offset"] = offset
+
+            updates_data = telegram_call("getUpdates", params, timeout=30)
+            if updates_data and updates_data.get("ok"):
+                for upd in updates_data.get("result", []):
+                    offset = upd["update_id"] + 1
+                    try:
+                        process_message(upd)
+                    except Exception as err:
+                        logger.error(f"Erro ao processar: {type(err).__name__}")
+            else:
+                time.sleep(2)
+
+        except KeyboardInterrupt:
+            break
+        except Exception as e:
+            time.sleep(4)
+
+if __name__ == "__main__":
+    main()
